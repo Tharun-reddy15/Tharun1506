@@ -6,3 +6,7 @@ result = subprocess.run(
     text=True
 )
 print(result.stdout)
+
+resultls = subprocess.run(["dir"], shell=True, capture_output=True, text=True)
+print(resultls.stdout)
+
