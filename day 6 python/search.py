@@ -46,3 +46,15 @@ for n in re.finditer(r"\d+","A1, B33, C444"):
         print(n.group(), n.start(), n.end())
 
 
+print(re.search(r"\d+", "Age is 25"))
+
+print(re.search(r"^a.*c$", "abnkkekkkknnc"))
+
+print(re.search(r"\w+(?=@)", "test@gmail.com"))
+m = re.search(r"\w+(?=@)", "test@gmail.com")
+print(m)
+
+m = re.search(r"\w+(?=@)", "test@gmail.com")
+print(m.group())
+
+
