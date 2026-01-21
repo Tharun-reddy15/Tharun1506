@@ -1,185 +1,224 @@
 import json
 import csv
-from abc import ABC, abstractmethod
 from functools import wraps
 
-# Descriptor for validation
-class ValidateMarks:
-    def __set_name__(self, owner, name):
-        self.name = name
+# -------------------- DECORATOR --------------------
+def log_method(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        print(f"[LOG] Method {func.__name__}() executed successfully")
+        return result
+    return wrapper
+
+
+# -------------------- DESCRIPTOR --------------------
+class MarksDescriptor:
+    def __get__(self, instance, owner):
+        return instance._marks
 
     def __set__(self, instance, value):
-        if not (0 <= value <= 100):
-            raise ValueError("Marks should be between 0 and 100")
-        instance.__dict__[self.name] = value
+        for m in value:
+            if m < 0 or m > 100:
+                raise ValueError("Error: Marks should be between 0 and 100")
+        instance._marks = value
 
-# Abstract base class
-class Person(ABC):
-    def __init__(self, id, name, department):
-        self.id = id
+
+# -------------------- BASE CLASS --------------------
+class Person:
+    def __init__(self, pid, name, department):
+        self.id = pid
         self.name = name
         self.department = department
 
-    @abstractmethod
-    def get_details(self):
-        pass
+    def display_details(self):
+        print(f"Name      : {self.name}")
+        print(f"Role      : Person")
+        print(f"Department: {self.department}")
 
+
+# -------------------- STUDENT CLASS --------------------
 class Student(Person):
-    marks = ValidateMarks()
+    marks = MarksDescriptor()
 
-    def __init__(self, id, name, department, semester, marks):
-        super().__init__(id, name, department)
+    def __init__(self, sid, name, department, semester, marks):
+        super().__init__(sid, name, department)
         self.semester = semester
         self.marks = marks
+        self.courses = []
 
-    def get_details(self):
-        return f"ID: {self.id}\nName: {self.name}\nDepartment: {self.department}\nSemester: {self.semester}"
+    def display_details(self):
+        print("Student Details:")
+        print("--------------------------------")
+        print(f"Name      : {self.name}")
+        print("Role      : Student")
+        print(f"Department: {self.department}")
 
+    @log_method
     def calculate_performance(self):
-        return sum(self.marks) / len(self.marks)
+        avg = sum(m for m in self.marks) / len(self.marks)
+        grade = "A" if avg >= 85 else "B" if avg >= 70 else "C"
+        print("Student Performance Report")
+        print("--------------------------------")
+        print("Student Name :", self.name)
+        print("Marks        :", self.marks)
+        print("Average      :", round(avg, 2))
+        print("Grade        :", grade)
+        return avg, grade
 
+    def __gt__(self, other):
+        return sum(self.marks) > sum(other.marks)
+
+
+# -------------------- FACULTY CLASS --------------------
 class Faculty(Person):
-    def __init__(self, id, name, department, salary):
-        super().__init__(id, name, department)
+    def __init__(self, fid, name, department, salary):
+        super().__init__(fid, name, department)
         self.__salary = salary
 
-    def get_details(self):
-        return f"ID: {self.id}\nName: {self.name}\nDepartment: {self.department}"
+    def display_details(self):
+        print("Faculty Details:")
+        print("--------------------------------")
+        print(f"Name      : {self.name}")
+        print("Role      : Faculty")
+        print(f"Department: {self.department}")
 
-    @property
-    def salary(self):
-        raise AttributeError("Access Denied: Salary is confidential")
+    def get_salary(self):
+        raise PermissionError("Access Denied: Salary is confidential")
 
+
+# -------------------- COURSE CLASS --------------------
 class Course:
-    def __init__(self, code, name, credits, faculty_id):
+    def __init__(self, code, name, credits, faculty):
         self.code = code
         self.name = name
         self.credits = credits
-        self.faculty_id = faculty_id
+        self.faculty = faculty
 
     def __add__(self, other):
         return self.credits + other.credits
 
-# Decorators
-def admin_only(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if kwargs.get('admin', False):
-            return func(*args, **kwargs)
-        else:
-            raise PermissionError("Access Denied: Admin privileges required")
-    return wrapper
 
-def log_execution(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        print(f"[LOG] Method {func.__name__}() executed successfully")
-        return func(*args, **kwargs)
-    return wrapper
-
-# University management system
-class University:
-    def __init__(self):
-        self.students = []
-        self.faculties = []
-        self.courses = []
-
-    def add_student(self, student):
-        self.students.append(student)
-
-    def add_faculty(self, faculty):
-        self.faculties.append(faculty)
-
-    def add_course(self, course):
-        self.courses.append(course)
-
-    @log_execution
-    def calculate_student_performance(self, student_id):
-        for student in self.students:
-            if student.id == student_id:
-                return student.calculate_performance()
-        return "Student not found"
+# -------------------- ITERATOR --------------------
+class StudentIterator:
+    def __init__(self, students):
+        self.students = students
+        self.index = 0
 
     def __iter__(self):
-        return iter(self.students)
+        return self
 
-# Example usage:
-university = University()
+    def __next__(self):
+        if self.index < len(self.students):
+            s = self.students[self.index]
+            self.index += 1
+            return f"{s.id} - {s.name}"
+        raise StopIteration
 
-while True:
-    print("1. Add Student")
-    print("2. Add Faculty")
-    print("3. Add Course")
-    print("4. Enroll Student to Course")
-    print("5. Calculate Student Performance")
-    print("6. Compare Two Students")
-    print("7. Generate Reports")
-    print("8. Exit")
 
-    choice = input("Enter your choice: ")
+# -------------------- SYSTEM CLASS --------------------
+class UniversitySystem:
+    def __init__(self):
+        self.students = []
+        self.faculty = []
+        self.courses = []
 
-    if choice == "1":
-        id = input("Enter student ID: ")
-        name = input("Enter student name: ")
-        department = input("Enter department: ")
-        semester = input("Enter semester: ")
-        marks = list(map(int, input("Enter marks (space-separated): ").split()))
-        student = Student(id, name, department, semester, marks)
-        university.add_student(student)
+    def add_student(self):
+        sid = input("Student ID: ")
+        name = input("Name: ")
+        dept = input("Department: ")
+        sem = int(input("Semester: "))
+        marks = list(map(int, input("Enter 5 marks: ").split()))
+        student = Student(sid, name, dept, sem, marks)
+        self.students.append(student)
         print("Student Created Successfully")
-        print("-------------------------------")
-        print(student.get_details())
-    elif choice == "2":
-        id = input("Enter faculty ID: ")
-        name = input("Enter faculty name: ")
-        department = input("Enter department: ")
-        salary = int(input("Enter salary: "))
-        faculty = Faculty(id, name, department, salary)
-        university.add_faculty(faculty)
-        print("Faculty Created Successfully")
-        print("-------------------------------")
-        print(faculty.get_details())
-    elif choice == "3":
-        code = input("Enter course code: ")
-        name = input("Enter course name: ")
-        credits = int(input("Enter credits: "))
-        faculty_id = input("Enter faculty ID: ")
-        course = Course(code, name, credits, faculty_id)
-        university.add_course(course)
-        print("Course Added Successfully")
-        print("-------------------------------")
-        print(f"Course Code: {course.code}")
-        print(f"Course Name: {course.name}")
-        print(f"Credits: {course.credits}")
-        print(f"Faculty: {faculty_id}")
-    elif choice == "5":
-        student_id = input("Enter student ID: ")
-        performance = university.calculate_student_performance(student_id)
-        if isinstance(performance, str):
-            print(performance)
-        else:
-            print("Student Performance Report")
-            print("-------------------------------")
-            for student in university.students:
-                if student.id == student_id:
-                    print(f"Student Name: {student.name}")
-                    print(f"Marks: {student.marks}")
-                    print(f"Average: {performance}")
-                    print(f"Grade: {'A' if performance >= 80 else 'B' if performance >= 60 else 'C'}")
-    elif choice == "8":
-        # Save data to JSON file
-        with open('students.json', 'w') as f:
-            json.dump([{'id': student.id, 'name': student.name, 'department': student.department, 'semester': student.semester, 'marks': student.marks} for student in university.students], f)
 
-        # Save data to CSV file
-        with open('students_report.csv', 'w', newline='') as f:
+    def add_faculty(self):
+        fid = input("Faculty ID: ")
+        name = input("Name: ")
+        dept = input("Department: ")
+        sal = int(input("Salary: "))
+        faculty = Faculty(fid, name, dept, sal)
+        self.faculty.append(faculty)
+        print("Faculty Created Successfully")
+
+    def add_course(self):
+        code = input("Course Code: ")
+        name = input("Course Name: ")
+        credits = int(input("Credits: "))
+        fid = input("Faculty ID: ")
+        faculty = next(f for f in self.faculty if f.id == fid)
+        course = Course(code, name, credits, faculty)
+        self.courses.append(course)
+        print("Course Added Successfully")
+
+    def enroll_student(self):
+        sid = input("Student ID: ")
+        code = input("Course Code: ")
+        student = next(s for s in self.students if s.id == sid)
+        course = next(c for c in self.courses if c.code == code)
+        student.courses.append(course)
+        print("Enrollment Successful")
+
+    def compare_students(self):
+        s1 = self.students[0]
+        s2 = self.students[1]
+        print("Comparing Students Performance")
+        print("--------------------------------")
+        print(f"{s1.name} > {s2.name} :", s1 > s2)
+
+    def generate_report(self):
+        with open("students_report.csv", "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(['ID', 'Name', 'Department', 'Average', 'Grade'])
-            for student in university.students:
-                performance = student.calculate_performance()
-                grade = 'A' if performance >= 80 else 'B' if performance >= 60 else 'C'
-                writer.writerow([student.id, student.name, student.department, performance, grade])
-        print("Thank you for using Smart University Management System.")
-        break
-    else:
-        print("Invalid choice. Please try again.")
+            writer.writerow(["ID", "Name", "Department", "Average", "Grade"])
+            for s in self.students:
+                avg, grade = s.calculate_performance()
+                writer.writerow([s.id, s.name, s.department, avg, grade])
+        print("CSV Report Generated")
+
+    def student_generator(self):
+        print("Student Record Generator")
+        print("--------------------------------")
+        for s in StudentIterator(self.students):
+            print(s)
+
+
+# -------------------- MAIN MENU --------------------
+def main():
+    system = UniversitySystem()
+
+    while True:
+        print("\n1 Add Student\n2 Add Faculty\n3 Add Course\n4 Enroll Student\n5 Calculate Performance\n6 Compare Students\n7 Generate Report\n8 Iterator\n9 Exit")
+        choice = input("Enter choice: ")
+
+        try:
+            if choice == "1":
+                system.add_student()
+            elif choice == "2":
+                system.add_faculty()
+            elif choice == "3":
+                system.add_course()
+            elif choice == "4":
+                system.enroll_student()
+            elif choice == "5":
+                system.students[0].calculate_performance()
+            elif choice == "6":
+                system.compare_students()
+            elif choice == "7":
+                system.generate_report()
+            elif choice == "8":
+                system.student_generator()
+            elif choice == "9":
+                print("Thank you for using Smart University Management System")
+                break
+            else:
+                print("Invalid choice")
+
+        except Exception as e:
+            print(e)
+
+
+if __name__ == "__main__":
+    main()
+
+
